@@ -8,40 +8,32 @@ groups = client['main']['groups']
 
 def already_db(user_id):
         user = users.find_one({"user_id" : str(user_id)})
-        if not user:
-            return False
-        return True
+        return bool(user)
 
 def already_dbg(chat_id):
         group = groups.find_one({"chat_id" : str(chat_id)})
-        if not group:
-            return False
-        return True
+        return bool(group)
 
 def add_user(user_id):
-    in_db = already_db(user_id)
-    if in_db:
-        return
-    return users.insert_one({"user_id": str(user_id)}) 
+        if in_db := already_db(user_id):
+                return
+        return users.insert_one({"user_id": str(user_id)}) 
 
 def remove_user(user_id):
-    in_db = already_db(user_id)
-    if not in_db:
-        return 
-    return users.delete_one({"user_id": str(user_id)})
+        if in_db := already_db(user_id):
+                return users.delete_one({"user_id": str(user_id)})
+        else:
+                return
     
 def add_group(chat_id):
-    in_db = already_dbg(chat_id)
-    if in_db:
-        return
-    return groups.insert_one({"chat_id": str(chat_id)})
+        if in_db := already_dbg(chat_id):
+                return
+        return groups.insert_one({"chat_id": str(chat_id)})
 
 def all_users():
-    user = users.find({})
-    usrs = len(list(user))
-    return usrs
+        user = users.find({})
+        return len(list(user))
 
 def all_groups():
-    group = groups.find({})
-    grps = len(list(group))
-    return grps
+        group = groups.find({})
+        return len(list(group))
