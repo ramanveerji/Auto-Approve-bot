@@ -38,19 +38,23 @@ async def approve(_, m : Message):
         add_group(m.chat.id)
         await app.approve_chat_join_request(op.id, kk.id)
         img = random.choice(gif)
-        await app.send_video(kk.id,img, "**Hello {}!\nWelcome To {}\n\n__Powerd By : @SdBotz__**".format(m.from_user.mention, m.chat.title))
+        await app.send_video(
+            kk.id,
+            img,
+            f"**Hello {m.from_user.mention}!\nWelcome To {m.chat.title}\n\n__Powerd By : @SdBotz__**",
+        )
         add_user(kk.id)
     except errors.PeerIdInvalid as e:
         print("user isn't start bot(means group)")
     except Exception as err:
-        print(str(err))    
+        print(err)    
  
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Start ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 @app.on_message(filters.command("start"))
 async def op(_, m :Message):
     try:
-        await app.get_chat_member(cfg.CHID, m.from_user.id) 
+        await app.get_chat_member(cfg.CHID, m.from_user.id)
         if m.chat.type == enums.ChatType.PRIVATE:
             keyboard = InlineKeyboardMarkup(
                 [
@@ -63,8 +67,12 @@ async def op(_, m :Message):
                 ]
             )
             add_user(m.from_user.id)
-            await m.reply_photo("https://telegra.ph/file/a782e3bbbe40df8a4bb67.jpg", caption="**🦊 Hello {}!\nI'm an auto approve [Admin Join Requests]({}) Bot.\nI can approve users in Groups/Channels.Add me to your chat and promote me to admin with add members permission.\n\n__Powerd By : @SdBotz__**".format(m.from_user.mention, "https://t.me/telegram/153"), reply_markup=keyboard)
-    
+            await m.reply_photo(
+                "https://telegra.ph/file/a782e3bbbe40df8a4bb67.jpg",
+                caption=f"""**🦊 Hello {m.from_user.mention}!\nI'm an auto approve [Admin Join Requests]({"https://t.me/telegram/153"}) Bot.\nI can approve users in Groups/Channels.Add me to your chat and promote me to admin with add members permission.\n\n__Powerd By : @SdBotz__**""",
+                reply_markup=keyboard,
+            )
+
         elif m.chat.type == enums.ChatType.GROUP or enums.ChatType.SUPERGROUP:
             keyboar = InlineKeyboardMarkup(
                 [
@@ -74,8 +82,11 @@ async def op(_, m :Message):
                 ]
             )
             add_group(m.chat.id)
-            await m.reply_text("**🦊 Hello {}!\nwrite me private for more details**".format(m.from_user.first_name), reply_markup=keyboar)
-        print(m.from_user.first_name +" Is started Your Bot!")
+            await m.reply_text(
+                f"**🦊 Hello {m.from_user.first_name}!\nwrite me private for more details**",
+                reply_markup=keyboar,
+            )
+        print(f"{m.from_user.first_name} Is started Your Bot!")
 
     except UserNotParticipant:
         key = InlineKeyboardMarkup(
@@ -85,7 +96,10 @@ async def op(_, m :Message):
                 ]
             ]
         )
-        await m.reply_text("**⚠️Access Denied!⚠️\n\nPlease Join @{} to use me.If you joined click check again button to confirm.**".format(cfg.FSUB), reply_markup=key)
+        await m.reply_text(
+            f"**⚠️Access Denied!⚠️\n\nPlease Join @{cfg.FSUB} to use me.If you joined click check again button to confirm.**",
+            reply_markup=key,
+        )
 
 #━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ callback ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -105,8 +119,12 @@ async def chk(_, cb : CallbackQuery):
                 ]
             )
             add_user(cb.from_user.id)
-            await cb.message.edit("**🦊 Hello {}!\nI'm an auto approve [Admin Join Requests]({}) Bot.\nI can approve users in Groups/Channels.Add me to your chat and promote me to admin with add members permission.\n\n__Powerd By : @SdBotz__**".format(cb.from_user.mention, "https://t.me/telegram/153"), reply_markup=keyboard, disable_web_page_preview=True)
-        print(cb.from_user.first_name +" Is started Your Bot!")
+            await cb.message.edit(
+                f"""**🦊 Hello {cb.from_user.mention}!\nI'm an auto approve [Admin Join Requests]({"https://t.me/telegram/153"}) Bot.\nI can approve users in Groups/Channels.Add me to your chat and promote me to admin with add members permission.\n\n__Powerd By : @SdBotz__**""",
+                reply_markup=keyboard,
+                disable_web_page_preview=True,
+            )
+        print(f"{cb.from_user.first_name} Is started Your Bot!")
     except UserNotParticipant:
         await cb.answer("🙅‍♂️ You are not joined to channel join and try again. 🙅‍♂️")
 
