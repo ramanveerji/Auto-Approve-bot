@@ -26,6 +26,11 @@
   - `FSUB` - Force subscribe channel username without `@`
   - `SUDO` - bot owners Id/ ids ( for broadcast and stats cmds). for multiple use space.
   
+## 🤖 Bot Commands
+  - `/start` - Starts the bot and provides information.
+  - `/users` - (Sudo User Only) Get bot statistics (total users and groups).
+  - `/bcast` - (Sudo User Only) Broadcast a message to all users. (Reply to a message with this command)
+  - `/fcast` - (Sudo User Only) Forward a message to all users. (Reply to a message with this command)
   
 ### 💫 Credits
  - [Dan](https://github.com/delivrance) for pyrogram
