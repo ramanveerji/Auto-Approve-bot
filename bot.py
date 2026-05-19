@@ -213,11 +213,13 @@ async def dbtool(_, m: Message):
     x = all_groups()
     tot = int(xx + x)
     await m.reply_text(
-        text=f"""
-🍀 Chats Stats 🍀
-🙋‍♂️ Users : `{xx}`
-👥 Groups : `{x}`
-🚧 Total users & groups : `{tot}` """
+        text=f"""📊 **RS Auto Approval Stats** 📊
+
+┌──🙋‍♂️ **Total Users:** `{xx}`
+├──👥 **Total Groups:** `{x}`
+└──🚧 **Grand Total:** `{tot}`
+
+__Powered By : @rs_bro__"""
     )
 
 
@@ -342,7 +344,7 @@ async def addsudo_cmd(_, m: Message):
                 return
     
     if not user_id:
-        await m.reply_text("❌ **Please reply to a user's message or provide a User ID / Username!**\n\n**Usage:** `/addsudo <user_id/username>` or reply to a message with `/addsudo`.")
+        await m.reply_text("❌ **Please reply to a user's message or provide a User ID / Username!**\n\n**Usage:** `/addsudo [user_id/username]` or reply to a message with `/addsudo`.")
         return
 
     add_sudo(user_id)
@@ -371,7 +373,7 @@ async def delsudo_cmd(_, m: Message):
                 return
     
     if not user_id:
-        await m.reply_text("❌ **Please reply to a user's message or provide a User ID / Username!**\n\n**Usage:** `/delsudo <user_id/username>` or reply to a message with `/delsudo`.")
+        await m.reply_text("❌ **Please reply to a user's message or provide a User ID / Username!**\n\n**Usage:** `/delsudo [user_id/username]` or reply to a message with `/delsudo`.")
         return
 
     remove_sudo(user_id)
@@ -387,18 +389,43 @@ async def sudolist_cmd(_, m: Message):
     static_sudos = cfg.SUDO
     dynamic_sudos = get_sudolist()
 
-    text = "👑 **Sudo Users List** 👑\n\n"
-    text += f"👑 **Owner (Full Access):** `{cfg.OWNER_ID}`\n\n"
-    text += "👤 **Static Sudoers (Config):**\n"
-    for s in static_sudos:
-        text += f"• `{s}`\n"
+    text = "👑 **RS Auto Approval Sudoers** 👑\n\n"
     
-    if dynamic_sudos:
-        text += "\n👤 **Dynamic Sudoers (Database):**\n"
-        for s in dynamic_sudos:
-            text += f"• `{s}`\n"
+    owner_str = f"`{cfg.OWNER_ID}`"
+    try:
+        owner_user = await app.get_users(cfg.OWNER_ID)
+        owner_str = f"{owner_user.mention} (`{cfg.OWNER_ID}`)"
+    except Exception:
+        pass
+    text += f"👑 **Owner (Full Access):**\n{owner_str}\n\n"
+    
+    text += "👤 **Static Sudoers (Config):**\n"
+    if static_sudos:
+        for s in static_sudos:
+            user_str = f"`{s}`"
+            try:
+                u = await app.get_users(s)
+                user_str = f"{u.mention} (`{s}`)"
+            except Exception:
+                pass
+            text += f"• {user_str}\n"
     else:
-        text += "\n👤 **Dynamic Sudoers (Database):** _None_\n"
+        text += "_None_\n"
+        
+    text += "\n⚙️ **Dynamic Sudoers (Database):**\n"
+    if dynamic_sudos:
+        for s in dynamic_sudos:
+            user_str = f"`{s}`"
+            try:
+                u = await app.get_users(s)
+                user_str = f"{u.mention} (`{s}`)"
+            except Exception:
+                pass
+            text += f"• {user_str}\n"
+    else:
+        text += "_None_\n"
+
+    text += "\n__Powered By : @rs_bro__"
     
     await m.reply_text(text)
 
