@@ -269,6 +269,7 @@ async def get_page_groups(client, page=1, page_size=5):
         username = g.get("username")
         invite_link = g.get("invite_link")
         chat_type = g.get("chat_type")
+        first_failed_at = g.get("first_failed_at")
         
         is_accessible = True
         try:
@@ -277,16 +278,23 @@ async def get_page_groups(client, page=1, page_size=5):
             username = chat.username or username
             invite_link = chat.invite_link or invite_link
             chat_type = "channel" if chat.type == enums.ChatType.CHANNEL else "group"
-            add_group(chat_id, title=title, username=username, invite_link=invite_link, chat_type=chat_type)
+            add_group(chat_id, title=title, username=username, invite_link=invite_link, chat_type=chat_type, unset_failed=True)
         except FloodWait:
             pass
         except Exception:
-            # Inaccessible chat - delete from database
-            try:
-                groups.delete_one({"chat_id": str(chat_id)})
-            except Exception:
-                pass
-            is_accessible = False
+            from datetime import datetime
+            # Track failure timestamp in MongoDB to prevent accidental restart deletion
+            if not first_failed_at:
+                first_failed_at = datetime.utcnow()
+                add_group(chat_id, first_failed_at=first_failed_at)
+                
+            # If it has been failing for more than 7 days, delete from database
+            if (datetime.utcnow() - first_failed_at).days >= 7:
+                try:
+                    groups.delete_one({"chat_id": str(chat_id)})
+                except Exception:
+                    pass
+                is_accessible = False
             
         if is_accessible:
             active_grps.append({
