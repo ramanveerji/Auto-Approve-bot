@@ -66,7 +66,11 @@ async def approve(_, m: Message):
 async def op(_, m: Message):
     if cfg.CHID:
         try:
-            await app.get_chat_member(cfg.CHID, m.from_user.id)
+            chat_target = cfg.FSUB.strip().replace("@", "") if cfg.FSUB else cfg.CHID
+            try:
+                await app.get_chat_member(chat_target, m.from_user.id)
+            except Exception:
+                await app.get_chat_member(cfg.CHID, m.from_user.id)
         except UserNotParticipant:
             key = InlineKeyboardMarkup([[InlineKeyboardButton("🍀 Check Again 🍀", "chk")]])
             await m.reply_text(
@@ -138,7 +142,11 @@ async def op(_, m: Message):
 async def chk(_, cb: CallbackQuery):
     if cfg.CHID:
         try:
-            await app.get_chat_member(cfg.CHID, cb.from_user.id)
+            chat_target = cfg.FSUB.strip().replace("@", "") if cfg.FSUB else cfg.CHID
+            try:
+                await app.get_chat_member(chat_target, cb.from_user.id)
+            except Exception:
+                await app.get_chat_member(cfg.CHID, cb.from_user.id)
         except UserNotParticipant:
             await cb.answer("🙅‍♂️ You are not joined to channel join and try again. 🙅‍♂️", show_alert=True)
             return
