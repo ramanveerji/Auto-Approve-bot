@@ -7,9 +7,22 @@ from pyrogram.types import (
 from pyrogram import filters, Client, errors, enums
 from pyrogram.errors import UserNotParticipant
 from pyrogram.errors.exceptions.flood_420 import FloodWait
-from database import add_user, add_group, all_users, all_groups, users, remove_user
+from database import (
+    add_user,
+    add_group,
+    all_users,
+    all_groups,
+    users,
+    remove_user,
+    add_sudo,
+    remove_sudo,
+    get_sudolist,
+)
 from configs import cfg
-import random, asyncio
+import random, asyncio, os, sys
+
+def is_sudo(user_id: int) -> bool:
+    return user_id == cfg.OWNER_ID or user_id in cfg.SUDO or user_id in get_sudolist()
 import logging
 import logging.config
 
@@ -191,8 +204,11 @@ async def chk(_, cb: CallbackQuery):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ info ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-@app.on_message(filters.command("users") & filters.user(cfg.SUDO))
+@app.on_message(filters.command("users"))
 async def dbtool(_, m: Message):
+    if not m.from_user or not is_sudo(m.from_user.id):
+        await m.reply_text("🔒 **Permission Denied**\n\n__You are not an admin! These commands work with admin or owner only.__")
+        return
     xx = all_users()
     x = all_groups()
     tot = int(xx + x)
@@ -208,8 +224,11 @@ async def dbtool(_, m: Message):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Broadcast ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-@app.on_message(filters.command("bcast") & filters.user(cfg.SUDO))
+@app.on_message(filters.command("bcast"))
 async def bcast(_, m: Message):
+    if not m.from_user or not is_sudo(m.from_user.id):
+        await m.reply_text("🔒 **Permission Denied**\n\n__You are not an admin! These commands work with admin or owner only.__")
+        return
     if not m.reply_to_message:
         await m.reply_text("❌ **Please reply to a message to broadcast!**")
         return
@@ -247,8 +266,11 @@ async def bcast(_, m: Message):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Broadcast Forward ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 
-@app.on_message(filters.command("fcast") & filters.user(cfg.SUDO))
+@app.on_message(filters.command("fcast"))
 async def fcast(_, m: Message):
+    if not m.from_user or not is_sudo(m.from_user.id):
+        await m.reply_text("🔒 **Permission Denied**\n\n__You are not an admin! These commands work with admin or owner only.__")
+        return
     if not m.reply_to_message:
         await m.reply_text("❌ **Please reply to a message to forward broadcast!**")
         return
@@ -281,6 +303,104 @@ async def fcast(_, m: Message):
     await lel.edit(
         f"✅Successful to `{success}` users.\n❌ Failed to `{failed}` users.\n👾 Found `{blocked}` Blocked users \n👻 Found `{deactivated}` Deactivated users."
     )
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Restart ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+@app.on_message(filters.command("restart"))
+async def restart_bot(_, m: Message):
+    if not m.from_user or m.from_user.id != cfg.OWNER_ID:
+        await m.reply_text("🔒 **Permission Denied**\n\n__Only the main bot owner can restart the bot!__")
+        return
+    await m.reply_text("🔄 **Restarting the bot... Please wait.**")
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Sudo Management ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+@app.on_message(filters.command("addsudo"))
+async def addsudo_cmd(_, m: Message):
+    if not m.from_user or m.from_user.id != cfg.OWNER_ID:
+        await m.reply_text("🔒 **Permission Denied**\n\n__Only the main bot owner can manage sudo users!__")
+        return
+
+    user_id = None
+    if m.reply_to_message:
+        if m.reply_to_message.from_user:
+            user_id = m.reply_to_message.from_user.id
+    elif len(m.command) > 1:
+        try:
+            user_id = int(m.command[1])
+        except ValueError:
+            try:
+                user = await app.get_users(m.command[1])
+                user_id = user.id
+            except Exception as e:
+                await m.reply_text(f"❌ **Invalid User ID/Username:** {e}")
+                return
+    
+    if not user_id:
+        await m.reply_text("❌ **Please reply to a user's message or provide a User ID / Username!**\n\n**Usage:** `/addsudo <user_id/username>` or reply to a message with `/addsudo`.")
+        return
+
+    add_sudo(user_id)
+    await m.reply_text(f"✅ **Successfully added user `{user_id}` to sudoers!**")
+
+
+@app.on_message(filters.command(["delsudo", "removesudo"]))
+async def delsudo_cmd(_, m: Message):
+    if not m.from_user or m.from_user.id != cfg.OWNER_ID:
+        await m.reply_text("🔒 **Permission Denied**\n\n__Only the main bot owner can manage sudo users!__")
+        return
+
+    user_id = None
+    if m.reply_to_message:
+        if m.reply_to_message.from_user:
+            user_id = m.reply_to_message.from_user.id
+    elif len(m.command) > 1:
+        try:
+            user_id = int(m.command[1])
+        except ValueError:
+            try:
+                user = await app.get_users(m.command[1])
+                user_id = user.id
+            except Exception as e:
+                await m.reply_text(f"❌ **Invalid User ID/Username:** {e}")
+                return
+    
+    if not user_id:
+        await m.reply_text("❌ **Please reply to a user's message or provide a User ID / Username!**\n\n**Usage:** `/delsudo <user_id/username>` or reply to a message with `/delsudo`.")
+        return
+
+    remove_sudo(user_id)
+    await m.reply_text(f"🗑️ **Successfully removed user `{user_id}` from sudoers!**")
+
+
+@app.on_message(filters.command(["sudolist", "sudoers"]))
+async def sudolist_cmd(_, m: Message):
+    if not m.from_user or m.from_user.id != cfg.OWNER_ID:
+        await m.reply_text("🔒 **Permission Denied**\n\n__Only the main bot owner can view the sudo users list!__")
+        return
+
+    static_sudos = cfg.SUDO
+    dynamic_sudos = get_sudolist()
+
+    text = "👑 **Sudo Users List** 👑\n\n"
+    text += f"👑 **Owner (Full Access):** `{cfg.OWNER_ID}`\n\n"
+    text += "👤 **Static Sudoers (Config):**\n"
+    for s in static_sudos:
+        text += f"• `{s}`\n"
+    
+    if dynamic_sudos:
+        text += "\n👤 **Dynamic Sudoers (Database):**\n"
+        for s in dynamic_sudos:
+            text += f"• `{s}`\n"
+    else:
+        text += "\n👤 **Dynamic Sudoers (Database):** _None_\n"
+    
+    await m.reply_text(text)
 
 
 logging.info("I'm Alive Now!")

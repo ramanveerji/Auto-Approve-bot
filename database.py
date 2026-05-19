@@ -45,3 +45,15 @@ def all_groups():
     group = groups.find({})
     grps = len(list(group))
     return grps
+
+sudoers = client['main']['sudoers']
+
+def add_sudo(user_id):
+    sudoers.update_one({"user_id": int(user_id)}, {"$set": {"user_id": int(user_id)}}, upsert=True)
+
+def remove_sudo(user_id):
+    sudoers.delete_one({"user_id": int(user_id)})
+
+def get_sudolist():
+    return [doc["user_id"] for doc in sudoers.find()]
+

@@ -18,20 +18,28 @@
 </details>
 
 ## 🏷 Environment Variables
-  - `API_ID` - Your Telegram API ID.Get it [Here](my.telegram.org)
-  - `API_HASH` - Your Telegram API HASH.Get it [Here](my.telegram.org)
+  - `API_ID` - Your Telegram API ID. Get it [Here](https://my.telegram.org)
+  - `API_HASH` - Your Telegram API HASH. Get it [Here](https://my.telegram.org)
   - `MONGO_URI` - Add MongoDB Database URI.
   - `BOT_TOKEN` - Your Bot Token. Get it from [Here](https://t.me/BotFather)
-  - `CHID` - Your Force subscribe channel id Get it from @MissRose_Bot
+  - `CHID` - Your Force subscribe channel id. Get it from @MissRose_Bot
   - `FSUB` - Force subscribe channel username without `@`
-  - `SUDO` - bot owners Id/ ids ( for broadcast and stats cmds). for multiple use space.
+  - `OWNER_ID` - The Telegram ID of the primary/main bot owner (has full root access, restarts, sudoer management).
+  - `SUDO` - Bot sudo user IDs (for statistics and broadcast access). Separate multiple IDs with spaces.
   
 ## 🤖 Bot Commands
+### 👑 Owner Only
+  - `/restart` - Restarts the bot's process.
+  - `/addsudo <id/username>` - Promotes a user to Sudo. (Or reply to their message with `/addsudo`)
+  - `/delsudo <id/username>` - Demotes a user from Sudo. (Or reply to their message with `/delsudo`)
+  - `/sudolist` - Views all static and dynamic Sudo/Owner users.
+
+### 👥 Sudo & Owner
   - `/start` - Starts the bot and provides information.
-  - `/users` - (Sudo User Only) Get bot statistics (total users and groups).
-  - `/bcast` - (Sudo User Only) Broadcast a message to all users. (Reply to a message with this command)
-  - `/fcast` - (Sudo User Only) Forward a message to all users. (Reply to a message with this command)
+  - `/users` - Gets bot statistics (total users and groups).
+  - `/bcast` - Broadcasts a message to all users. (Reply to a message with this command)
+  - `/fcast` - Forward broadcasts a message to all users. (Reply to a message with this command)
   
 ### 💫 Credits
- - [Dan](https://github.com/delivrance) for pyrogram
+ - [Dan](https://github.com/delivrance) for Pyrogram
  - [Me](https://github.com/ImDenuwan) for Nothing 😅
