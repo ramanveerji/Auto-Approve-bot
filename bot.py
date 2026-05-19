@@ -4,7 +4,7 @@ from pyrogram.types import (
     InlineKeyboardMarkup,
     CallbackQuery,
 )
-from pyrogram import filters, Client, errors, enums
+from pyrogram import filters, Client, errors, enums, idle
 from pyrogram.errors import UserNotParticipant
 from pyrogram.errors.exceptions.flood_420 import FloodWait
 from database import (
@@ -13,10 +13,12 @@ from database import (
     all_users,
     all_groups,
     users,
+    groups,
     remove_user,
     add_sudo,
     remove_sudo,
     get_sudolist,
+    get_all_groups_details,
 )
 from configs import cfg
 import random, asyncio, os, sys
@@ -57,7 +59,7 @@ async def approve(_, m: Message):
     op = m.chat
     kk = m.from_user
     try:
-        add_group(m.chat.id)
+        add_group(m.chat.id, title=m.chat.title, username=m.chat.username, invite_link=m.chat.invite_link)
         await app.approve_chat_join_request(op.id, kk.id)
         img = random.choice(gif)
         await app.send_video(
@@ -138,7 +140,7 @@ async def op(_, m: Message):
                     ]
                 ]
             )
-            add_group(m.chat.id)
+            add_group(m.chat.id, title=m.chat.title, username=m.chat.username, invite_link=m.chat.invite_link)
             await m.reply_text(
                 "**🦊 Hello {}!\nwrite me in private for more details**".format(
                     m.from_user.first_name
@@ -203,6 +205,51 @@ async def chk(_, cb: CallbackQuery):
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ info ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+async def get_detailed_groups_message(client):
+    all_grps = get_all_groups_details()
+    if not all_grps:
+        return "❌ **No groups or channels are currently registered in the database.**"
+    
+    text = "👥 **RS Auto Approval Group Directory** 👥\n\n"
+    count = 1
+    
+    for g in all_grps:
+        chat_id = g.get("chat_id")
+        title = g.get("title")
+        username = g.get("username")
+        invite_link = g.get("invite_link")
+        
+        try:
+            chat = await client.get_chat(int(chat_id))
+            title = chat.title or title
+            username = chat.username or username
+            invite_link = chat.invite_link or invite_link
+            add_group(chat_id, title=title, username=username, invite_link=invite_link)
+        except Exception:
+            pass
+        
+        title_str = title or "Unknown Chat"
+        id_str = f"`{chat_id}`"
+        
+        if username:
+            usr_str = f"@{username}"
+            link_str = f"[Click Here](https://t.me/{username})"
+        else:
+            usr_str = "_Private Chat_"
+            if invite_link:
+                link_str = f"[Invite Link]({invite_link})"
+            else:
+                link_str = "_No Link Available_"
+                
+        text += f"{count}. **Title:** {title_str}\n"
+        text += f"   🆔 **ID:** {id_str}\n"
+        text += f"   🌐 **Username:** {usr_str}\n"
+        text += f"   🔗 **Link:** {link_str}\n\n"
+        count += 1
+        
+    text += f"📊 **Total Chats:** `{len(all_grps)}` Chats\n\n__Powered By : @rs_bro__"
+    return text
+
 
 @app.on_message(filters.command("users"))
 async def dbtool(_, m: Message):
@@ -212,6 +259,19 @@ async def dbtool(_, m: Message):
     xx = all_users()
     x = all_groups()
     tot = int(xx + x)
+    
+    keyboard = None
+    if m.from_user.id == cfg.OWNER_ID:
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "👥 View Groups", callback_data="view_groups"
+                    )
+                ]
+            ]
+        )
+    
     await m.reply_text(
         text=f"""📊 **RS Auto Approval Stats** 📊
 
@@ -219,7 +279,66 @@ async def dbtool(_, m: Message):
 ├──👥 **Total Groups:** `{x}`
 └──🚧 **Grand Total:** `{tot}`
 
-__Powered By : @rs_bro__"""
+__Powered By : @rs_bro__""",
+        reply_markup=keyboard
+    )
+
+
+@app.on_callback_query(filters.regex("view_groups"))
+async def cb_view_groups(_, cb: CallbackQuery):
+    if not cb.from_user or cb.from_user.id != cfg.OWNER_ID:
+        await cb.answer("🔒 Permission Denied: Main owner only!", show_alert=True)
+        return
+    
+    await cb.message.edit("`⚡️ Fetching group details...`")
+    try:
+        report = await get_detailed_groups_message(app)
+        back_keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "⬅️ Back to Stats", callback_data="back_stats"
+                    )
+                ]
+            ]
+        )
+        await cb.message.edit(report, reply_markup=back_keyboard, disable_web_page_preview=True)
+    except Exception as e:
+        logging.error(f"Error in view_groups callback: {e}")
+        await cb.message.edit(f"❌ **An error occurred:** {e}")
+
+
+@app.on_callback_query(filters.regex("back_stats"))
+async def cb_back_stats(_, cb: CallbackQuery):
+    if not cb.from_user or not is_sudo(cb.from_user.id):
+        await cb.answer("🔒 Permission Denied: Sudoers only!", show_alert=True)
+        return
+        
+    xx = all_users()
+    x = all_groups()
+    tot = int(xx + x)
+    
+    keyboard = None
+    if cb.from_user.id == cfg.OWNER_ID:
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "👥 View Groups", callback_data="view_groups"
+                    )
+                ]
+            ]
+        )
+    
+    await cb.message.edit(
+        text=f"""📊 **RS Auto Approval Stats** 📊
+
+┌──🙋‍♂️ **Total Users:** `{xx}`
+├──👥 **Total Groups:** `{x}`
+└──🚧 **Grand Total:** `{tot}`
+
+__Powered By : @rs_bro__""",
+        reply_markup=keyboard
     )
 
 
@@ -260,8 +379,18 @@ async def bcast(_, m: Message):
             print(e)
             failed += 1
 
+    total = success + failed + blocked + deactivated
     await lel.edit(
-        f"✅Successful to `{success}` users.\n❌ Failed to `{failed}` users.\n👾 Found `{blocked}` Blocked users \n👻 Found `{deactivated}` Deactivated users."
+        f"""📢 **RS Broadcast Campaign Completed** 📢
+
+┌── ✅ **Success:** `{success}` users
+├── ❌ **Failed:** `{failed}` users
+├── 👾 **Blocked:** `{blocked}` users
+└── 👻 **Deactivated:** `{deactivated}` users
+
+📈 **Total Reached:** `{success}` / `{total}` users
+
+__Powered By : @rs_bro__"""
     )
 
 
@@ -302,8 +431,18 @@ async def fcast(_, m: Message):
             print(e)
             failed += 1
 
+    total = success + failed + blocked + deactivated
     await lel.edit(
-        f"✅Successful to `{success}` users.\n❌ Failed to `{failed}` users.\n👾 Found `{blocked}` Blocked users \n👻 Found `{deactivated}` Deactivated users."
+        f"""📢 **RS Broadcast Campaign Completed** 📢
+
+┌── ✅ **Success:** `{success}` users
+├── ❌ **Failed:** `{failed}` users
+├── 👾 **Blocked:** `{blocked}` users
+└── 👻 **Deactivated:** `{deactivated}` users
+
+📈 **Total Reached:** `{success}` / `{total}` users
+
+__Powered By : @rs_bro__"""
     )
 
 
@@ -315,8 +454,41 @@ async def restart_bot(_, m: Message):
     if not m.from_user or m.from_user.id != cfg.OWNER_ID:
         await m.reply_text("🔒 **Permission Denied**\n\n__Only the main bot owner can restart the bot!__")
         return
-    await m.reply_text("🔄 **Restarting the bot... Please wait.**")
+    
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("✅ Yes", callback_data="confirm_restart"),
+                InlineKeyboardButton("❌ No", callback_data="cancel_restart")
+            ]
+        ]
+    )
+    await m.reply_text(
+        "⚠️ **Are you sure you want to restart the bot?**\n\n_Accidental restarts can interrupt active processes._",
+        reply_markup=keyboard
+    )
+
+
+@app.on_callback_query(filters.regex("confirm_restart"))
+async def cb_confirm_restart(_, cb: CallbackQuery):
+    if not cb.from_user or cb.from_user.id != cfg.OWNER_ID:
+        await cb.answer("🔒 Permission Denied: Main owner only!", show_alert=True)
+        return
+    await cb.message.edit("🔄 **Restarting the bot... Please wait.**")
+    try:
+        with open("restart.txt", "w") as f:
+            f.write(f"{cb.message.chat.id}\n{cb.message.id}")
+    except Exception as e:
+        logging.error(f"Failed to write restart file: {e}")
     os.execv(sys.executable, [sys.executable] + sys.argv)
+
+
+@app.on_callback_query(filters.regex("cancel_restart"))
+async def cb_cancel_restart(_, cb: CallbackQuery):
+    if not cb.from_user or cb.from_user.id != cfg.OWNER_ID:
+        await cb.answer("🔒 Permission Denied: Main owner only!", show_alert=True)
+        return
+    await cb.message.edit("❌ **Restart cancelled!**")
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Sudo Management ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -430,5 +602,33 @@ async def sudolist_cmd(_, m: Message):
     await m.reply_text(text)
 
 
-logging.info("I'm Alive Now!")
-app.run()
+async def main():
+    await app.start()
+    logging.info("I'm Alive Now!")
+    
+    if os.path.exists("restart.txt"):
+        try:
+            with open("restart.txt", "r") as f:
+                lines = f.read().splitlines()
+            if len(lines) >= 2:
+                chat_id = int(lines[0])
+                msg_id = int(lines[1])
+                await app.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=msg_id,
+                    text="✅ **Bot restarted successfully!**"
+                )
+        except Exception as e:
+            logging.error(f"Failed to update restart message: {e}")
+        finally:
+            try:
+                os.remove("restart.txt")
+            except Exception:
+                pass
+                
+    await idle()
+    await app.stop()
+
+
+if __name__ == "__main__":
+    app.run(main())

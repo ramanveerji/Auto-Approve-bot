@@ -30,11 +30,20 @@ def remove_user(user_id):
         return 
     return users.delete_one({"user_id": str(user_id)})
     
-def add_group(chat_id):
-    in_db = already_dbg(chat_id)
-    if in_db:
-        return
-    return groups.insert_one({"chat_id": str(chat_id)})
+def add_group(chat_id, title=None, username=None, invite_link=None):
+    update_fields = {"chat_id": str(chat_id)}
+    if title is not None:
+        update_fields["title"] = title
+    if username is not None:
+        update_fields["username"] = username
+    if invite_link is not None:
+        update_fields["invite_link"] = invite_link
+        
+    return groups.update_one(
+        {"chat_id": str(chat_id)},
+        {"$set": update_fields},
+        upsert=True
+    )
 
 def all_users():
     user = users.find({})
@@ -45,6 +54,10 @@ def all_groups():
     group = groups.find({})
     grps = len(list(group))
     return grps
+
+def get_all_groups_details():
+    return list(groups.find({}))
+
 
 sudoers = client['main']['sudoers']
 

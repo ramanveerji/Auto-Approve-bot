@@ -36,7 +36,7 @@
 
 ### 👥 Sudo & Owner
   - `/start` - Starts the bot and provides information.
-  - `/users` - Gets bot statistics (total users and groups).
+  - `/users` - Gets brief bot statistics (total users, groups, grand total). The primary owner will also see an interactive button to view detailed groups/channels info.
   - `/bcast` - Broadcasts a message to all users. (Reply to a message with this command)
   - `/fcast` - Forward broadcasts a message to all users. (Reply to a message with this command)
   
