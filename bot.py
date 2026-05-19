@@ -3,6 +3,7 @@ from pyrogram.types import (
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     CallbackQuery,
+    ChatMemberUpdated,
 )
 from pyrogram import filters, Client, errors, enums, idle
 from pyrogram.errors import UserNotParticipant
@@ -75,6 +76,27 @@ async def approve(_, m: Message):
         print("user isn't start bot(means group)")
     except Exception as err:
         print(str(err))
+
+
+@app.on_my_chat_member_updated()
+async def my_chat_member_handler(_, update: ChatMemberUpdated):
+    if update.new_chat_member:
+        status = update.new_chat_member.status
+        if status in [enums.ChatMemberStatus.ADMINISTRATOR, enums.ChatMemberStatus.MEMBER]:
+            chat = update.chat
+            chat_type = "channel" if chat.type == enums.ChatType.CHANNEL else "group"
+            add_group(
+                chat.id,
+                title=chat.title,
+                username=chat.username,
+                invite_link=chat.invite_link,
+                chat_type=chat_type
+            )
+        elif status in [enums.ChatMemberStatus.BANNED, enums.ChatMemberStatus.LEFT, enums.ChatMemberStatus.RESTRICTED]:
+            try:
+                groups.delete_one({"chat_id": str(update.chat.id)})
+            except Exception:
+                pass
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ Start ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
