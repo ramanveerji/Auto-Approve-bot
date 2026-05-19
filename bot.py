@@ -64,8 +64,22 @@ async def approve(_, m: Message):
 
 @app.on_message(filters.command("start"))
 async def op(_, m: Message):
+    if cfg.CHID:
+        try:
+            await app.get_chat_member(cfg.CHID, m.from_user.id)
+        except UserNotParticipant:
+            key = InlineKeyboardMarkup([[InlineKeyboardButton("🍀 Check Again 🍀", "chk")]])
+            await m.reply_text(
+                "**⚠️Access Denied!⚠️\n\nPlease Join @{} to use me.If you joined click check again button to confirm.**".format(
+                    cfg.FSUB
+                ),
+                reply_markup=key,
+            )
+            return
+        except Exception as e:
+            logging.error(f"Error checking chat member for force subscribe: {e}")
+
     try:
-        await app.get_chat_member(cfg.CHID, m.from_user.id)
         if m.chat.type == enums.ChatType.PRIVATE:
             keyboard = InlineKeyboardMarkup(
                 [
@@ -94,7 +108,7 @@ async def op(_, m: Message):
                 reply_markup=keyboard,
             )
 
-        elif m.chat.type == enums.ChatType.GROUP or enums.ChatType.SUPERGROUP:
+        elif m.chat.type in (enums.ChatType.GROUP, enums.ChatType.SUPERGROUP):
             keyboar = InlineKeyboardMarkup(
                 [
                     [
@@ -113,15 +127,8 @@ async def op(_, m: Message):
                 reply_markup=keyboar,
             )
         print(m.from_user.first_name + " started Your Bot!")
-
-    except UserNotParticipant:
-        key = InlineKeyboardMarkup([[InlineKeyboardButton("🍀 Check Again 🍀", "chk")]])
-        await m.reply_text(
-            "**⚠️Access Denied!⚠️\n\nPlease Join @{} to use me.If you joined click check again button to confirm.**".format(
-                cfg.FSUB
-            ),
-            reply_markup=key,
-        )
+    except Exception as err:
+        logging.error(f"Error in start command handler: {err}")
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ callback ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -129,8 +136,16 @@ async def op(_, m: Message):
 
 @app.on_callback_query(filters.regex("chk"))
 async def chk(_, cb: CallbackQuery):
+    if cfg.CHID:
+        try:
+            await app.get_chat_member(cfg.CHID, cb.from_user.id)
+        except UserNotParticipant:
+            await cb.answer("🙅‍♂️ You are not joined to channel join and try again. 🙅‍♂️", show_alert=True)
+            return
+        except Exception as e:
+            logging.error(f"Error checking chat member in callback: {e}")
+
     try:
-        await app.get_chat_member(cfg.CHID, cb.from_user.id)
         if cb.message.chat.type == enums.ChatType.PRIVATE:
             keyboard = InlineKeyboardMarkup(
                 [
@@ -159,8 +174,8 @@ async def chk(_, cb: CallbackQuery):
                 disable_web_page_preview=True,
             )
         print(cb.from_user.first_name + " started Your Bot!")
-    except UserNotParticipant:
-        await cb.answer("🙅‍♂️ You are not joined to channel join and try again. 🙅‍♂️")
+    except Exception as err:
+        logging.error(f"Error in chk callback query handler: {err}")
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ info ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -185,6 +200,9 @@ async def dbtool(_, m: Message):
 
 @app.on_message(filters.command("bcast") & filters.user(cfg.SUDO))
 async def bcast(_, m: Message):
+    if not m.reply_to_message:
+        await m.reply_text("❌ **Please reply to a message to broadcast!**")
+        return
     allusers = users
     lel = await m.reply_text("`⚡️ Processing...`")
     success = 0
@@ -221,6 +239,9 @@ async def bcast(_, m: Message):
 
 @app.on_message(filters.command("fcast") & filters.user(cfg.SUDO))
 async def fcast(_, m: Message):
+    if not m.reply_to_message:
+        await m.reply_text("❌ **Please reply to a message to forward broadcast!**")
+        return
     allusers = users
     lel = await m.reply_text("`⚡️ Processing...`")
     success = 0
