@@ -210,10 +210,26 @@ async def get_detailed_groups_message(client):
     if not all_grps:
         return "❌ **No groups or channels are currently registered in the database.**"
     
+    # Dynamic deduplication and automatic background database cleanup
+    seen_ids = set()
+    unique_grps = []
+    for g in all_grps:
+        chat_id = g.get("chat_id")
+        if not chat_id:
+            continue
+        if chat_id in seen_ids:
+            try:
+                groups.delete_one({"_id": g["_id"]})
+            except Exception:
+                pass
+            continue
+        seen_ids.add(chat_id)
+        unique_grps.append(g)
+        
     text = "👥 **RS Auto Approval Group Directory** 👥\n\n"
     count = 1
     
-    for g in all_grps:
+    for g in unique_grps:
         chat_id = g.get("chat_id")
         title = g.get("title")
         username = g.get("username")
@@ -247,7 +263,7 @@ async def get_detailed_groups_message(client):
         text += f"   🔗 **Link:** {link_str}\n\n"
         count += 1
         
-    text += f"📊 **Total Chats:** `{len(all_grps)}` Chats\n\n__Powered By : @rs_bro__"
+    text += f"📊 **Total Chats:** `{len(unique_grps)}` Chats\n\n__Powered By : @rs_bro__"
     return text
 
 
@@ -603,6 +619,10 @@ async def sudolist_cmd(_, m: Message):
 
 
 async def main():
+    # 15 seconds startup delay to prevent multi-instance conflicts during rolling deployments
+    logging.info("Delaying startup by 15 seconds to prevent multi-instance conflicts...")
+    await asyncio.sleep(15)
+    
     await app.start()
     logging.info("I'm Alive Now!")
     
