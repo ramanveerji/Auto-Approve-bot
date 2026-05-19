@@ -37,6 +37,8 @@ app = Client(
     "approver", api_id=cfg.API_ID, api_hash=cfg.API_HASH, bot_token=cfg.BOT_TOKEN
 )
 
+bot_id = None
+
 gif = [
     "https://telegra.ph/file/a5a2bb456bf3eecdbbb99.mp4",
     "https://telegra.ph/file/03c6e49bea9ce6c908b87.mp4",
@@ -78,10 +80,20 @@ async def approve(_, m: Message):
         print(str(err))
 
 
-@app.on_my_chat_member_updated()
-async def my_chat_member_handler(_, update: ChatMemberUpdated):
+@app.on_chat_member_updated()
+async def chat_member_handler(_, update: ChatMemberUpdated):
+    global bot_id
+    if not bot_id:
+        return
+        
+    target_user = None
     if update.new_chat_member:
-        status = update.new_chat_member.status
+        target_user = update.new_chat_member.user
+    elif update.old_chat_member:
+        target_user = update.old_chat_member.user
+        
+    if target_user and target_user.id == bot_id:
+        status = update.new_chat_member.status if update.new_chat_member else None
         if status in [enums.ChatMemberStatus.ADMINISTRATOR, enums.ChatMemberStatus.MEMBER]:
             chat = update.chat
             chat_type = "channel" if chat.type == enums.ChatType.CHANNEL else "group"
@@ -92,7 +104,7 @@ async def my_chat_member_handler(_, update: ChatMemberUpdated):
                 invite_link=chat.invite_link,
                 chat_type=chat_type
             )
-        elif status in [enums.ChatMemberStatus.BANNED, enums.ChatMemberStatus.LEFT, enums.ChatMemberStatus.RESTRICTED]:
+        elif status in [enums.ChatMemberStatus.BANNED, enums.ChatMemberStatus.LEFT, enums.ChatMemberStatus.RESTRICTED] or not status:
             try:
                 groups.delete_one({"chat_id": str(update.chat.id)})
             except Exception:
@@ -662,12 +674,19 @@ async def sudolist_cmd(_, m: Message):
 
 
 async def main():
+    global bot_id
     # 15 seconds startup delay to prevent multi-instance conflicts during rolling deployments
     logging.info("Delaying startup by 15 seconds to prevent multi-instance conflicts...")
     await asyncio.sleep(15)
     
     await app.start()
     logging.info("I'm Alive Now!")
+    
+    try:
+        me = await app.get_me()
+        bot_id = me.id
+    except Exception as e:
+        logging.error(f"Failed to fetch bot info: {e}")
     
     if os.path.exists("restart.txt"):
         try:
