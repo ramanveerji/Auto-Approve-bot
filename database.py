@@ -30,7 +30,7 @@ def remove_user(user_id):
         return 
     return users.delete_one({"user_id": str(user_id)})
     
-def add_group(chat_id, title=None, username=None, invite_link=None):
+def add_group(chat_id, title=None, username=None, invite_link=None, chat_type=None):
     update_fields = {"chat_id": str(chat_id)}
     if title is not None:
         update_fields["title"] = title
@@ -38,6 +38,8 @@ def add_group(chat_id, title=None, username=None, invite_link=None):
         update_fields["username"] = username
     if invite_link is not None:
         update_fields["invite_link"] = invite_link
+    if chat_type is not None:
+        update_fields["chat_type"] = chat_type
         
     return groups.update_one(
         {"chat_id": str(chat_id)},

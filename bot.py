@@ -59,7 +59,8 @@ async def approve(_, m: Message):
     op = m.chat
     kk = m.from_user
     try:
-        add_group(m.chat.id, title=m.chat.title, username=m.chat.username, invite_link=m.chat.invite_link)
+        chat_type = "channel" if m.chat.type == enums.ChatType.CHANNEL else "group"
+        add_group(m.chat.id, title=m.chat.title, username=m.chat.username, invite_link=m.chat.invite_link, chat_type=chat_type)
         await app.approve_chat_join_request(op.id, kk.id)
         img = random.choice(gif)
         await app.send_video(
@@ -140,7 +141,8 @@ async def op(_, m: Message):
                     ]
                 ]
             )
-            add_group(m.chat.id, title=m.chat.title, username=m.chat.username, invite_link=m.chat.invite_link)
+            chat_type = "channel" if m.chat.type == enums.ChatType.CHANNEL else "group"
+            add_group(m.chat.id, title=m.chat.title, username=m.chat.username, invite_link=m.chat.invite_link, chat_type=chat_type)
             await m.reply_text(
                 "**🦊 Hello {}!\nwrite me in private for more details**".format(
                     m.from_user.first_name
@@ -234,16 +236,30 @@ async def get_detailed_groups_message(client):
         title = g.get("title")
         username = g.get("username")
         invite_link = g.get("invite_link")
+        chat_type = g.get("chat_type")
         
+        is_accessible = True
         try:
             chat = await client.get_chat(int(chat_id))
             title = chat.title or title
             username = chat.username or username
             invite_link = chat.invite_link or invite_link
-            add_group(chat_id, title=title, username=username, invite_link=invite_link)
-        except Exception:
+            chat_type = "channel" if chat.type == enums.ChatType.CHANNEL else "group"
+            add_group(chat_id, title=title, username=username, invite_link=invite_link, chat_type=chat_type)
+        except FloodWait:
+            # Keep on rate limit
             pass
-        
+        except Exception:
+            # Inaccessible chat - delete from database
+            try:
+                groups.delete_one({"chat_id": str(chat_id)})
+            except Exception:
+                pass
+            is_accessible = False
+            
+        if not is_accessible:
+            continue
+            
         title_str = title or "Unknown Chat"
         id_str = f"`{chat_id}`"
         
@@ -257,13 +273,18 @@ async def get_detailed_groups_message(client):
             else:
                 link_str = "_No Link Available_"
                 
-        text += f"{count}. **Title:** {title_str}\n"
+        type_label = "📣 **Channel:**" if chat_type == "channel" else "👥 **Group:**"
+        text += f"{count}. {type_label} {title_str}\n"
         text += f"   🆔 **ID:** {id_str}\n"
         text += f"   🌐 **Username:** {usr_str}\n"
         text += f"   🔗 **Link:** {link_str}\n\n"
         count += 1
         
-    text += f"📊 **Total Chats:** `{len(unique_grps)}` Chats\n\n__Powered By : @rs_bro__"
+    total_displayed = count - 1
+    if total_displayed == 0:
+        return "❌ **No active groups or channels are currently registered/accessible.**"
+        
+    text += f"📊 **Total Chats:** `{total_displayed}` Chats\n\n__Powered By : @rs_bro__"
     return text
 
 
