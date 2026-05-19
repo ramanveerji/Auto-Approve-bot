@@ -14,6 +14,8 @@ import logging
 import logging.config
 
 logging.config.fileConfig("logging.conf")
+logging.getLogger("pyrogram").setLevel(logging.ERROR)
+logging.getLogger("pyrogram.session.messenger").setLevel(logging.ERROR)
 
 app = Client(
     "approver", api_id=cfg.API_ID, api_hash=cfg.API_HASH, bot_token=cfg.BOT_TOKEN
