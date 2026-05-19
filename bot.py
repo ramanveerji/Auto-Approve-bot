@@ -241,11 +241,11 @@ async def chk(_, cb: CallbackQuery):
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ info ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-async def get_detailed_groups_message(client):
+async def get_page_groups(client, page=1, page_size=5):
     all_grps = get_all_groups_details()
     if not all_grps:
-        return "❌ **No groups or channels are currently registered in the database.**"
-    
+        return "❌ **No groups or channels are currently registered in the database.**", None
+        
     # Dynamic deduplication and automatic background database cleanup
     seen_ids = set()
     unique_grps = []
@@ -262,9 +262,7 @@ async def get_detailed_groups_message(client):
         seen_ids.add(chat_id)
         unique_grps.append(g)
         
-    text = "👥 **RS Auto Approval Group Directory** 👥\n\n"
-    count = 1
-    
+    active_grps = []
     for g in unique_grps:
         chat_id = g.get("chat_id")
         title = g.get("title")
@@ -281,7 +279,6 @@ async def get_detailed_groups_message(client):
             chat_type = "channel" if chat.type == enums.ChatType.CHANNEL else "group"
             add_group(chat_id, title=title, username=username, invite_link=invite_link, chat_type=chat_type)
         except FloodWait:
-            # Keep on rate limit
             pass
         except Exception:
             # Inaccessible chat - delete from database
@@ -291,10 +288,40 @@ async def get_detailed_groups_message(client):
                 pass
             is_accessible = False
             
-        if not is_accessible:
-            continue
+        if is_accessible:
+            active_grps.append({
+                "chat_id": chat_id,
+                "title": title,
+                "username": username,
+                "invite_link": invite_link,
+                "chat_type": chat_type
+            })
             
-        title_str = title or "Unknown Chat"
+    total_chats = len(active_grps)
+    if total_chats == 0:
+        return "❌ **No active groups or channels are currently registered/accessible.**", None
+        
+    total_pages = (total_chats + page_size - 1) // page_size
+    
+    if page < 1:
+        page = 1
+    if page > total_pages:
+        page = total_pages
+        
+    start = (page - 1) * page_size
+    end = start + page_size
+    page_items = active_grps[start:end]
+    
+    text = "👥 **RS Auto Approval Chat Directory** 👥\n\n"
+    count = start + 1
+    
+    for g in page_items:
+        chat_id = g.get("chat_id")
+        title_str = g.get("title") or "Unknown Chat"
+        username = g.get("username")
+        invite_link = g.get("invite_link")
+        chat_type = g.get("chat_type")
+        
         id_str = f"`{chat_id}`"
         
         if username:
@@ -314,12 +341,22 @@ async def get_detailed_groups_message(client):
         text += f"   🔗 **Link:** {link_str}\n\n"
         count += 1
         
-    total_displayed = count - 1
-    if total_displayed == 0:
-        return "❌ **No active groups or channels are currently registered/accessible.**"
+    text += f"📊 **Page:** `{page}` / `{total_pages}` | **Total Chats:** `{total_chats}`\n\n__Powered By : @rs_bro__"
+    
+    # Generate Keyboard buttons for pagination
+    buttons = []
+    row = []
+    if page > 1:
+        row.append(InlineKeyboardButton("◀️ Previous", callback_data=f"groups_page_{page-1}"))
+    if page < total_pages:
+        row.append(InlineKeyboardButton("Next ▶️", callback_data=f"groups_page_{page+1}"))
         
-    text += f"📊 **Total Chats:** `{total_displayed}` Chats\n\n__Powered By : @rs_bro__"
-    return text
+    if row:
+        buttons.append(row)
+    buttons.append([InlineKeyboardButton("🔙 Back to Stats", callback_data="back_stats")])
+    
+    keyboard = InlineKeyboardMarkup(buttons)
+    return text, keyboard
 
 
 @app.on_message(filters.command("users"))
@@ -355,25 +392,23 @@ __Powered By : @rs_bro__""",
     )
 
 
-@app.on_callback_query(filters.regex("view_groups"))
+@app.on_callback_query(filters.regex("^view_groups$|^groups_page_"))
 async def cb_view_groups(_, cb: CallbackQuery):
     if not cb.from_user or cb.from_user.id != cfg.OWNER_ID:
         await cb.answer("🔒 Permission Denied: Main owner only!", show_alert=True)
         return
-    
-    await cb.message.edit("`⚡️ Fetching group details...`")
+        
+    page = 1
+    if cb.data.startswith("groups_page_"):
+        try:
+            page = int(cb.data.split("_")[-1])
+        except Exception:
+            page = 1
+            
+    await cb.answer("Loading chat directory...")
     try:
-        report = await get_detailed_groups_message(app)
-        back_keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton(
-                        "⬅️ Back to Stats", callback_data="back_stats"
-                    )
-                ]
-            ]
-        )
-        await cb.message.edit(report, reply_markup=back_keyboard, disable_web_page_preview=True)
+        report, markup = await get_page_groups(app, page=page)
+        await cb.message.edit(report, reply_markup=markup, disable_web_page_preview=True)
     except Exception as e:
         logging.error(f"Error in view_groups callback: {e}")
         await cb.message.edit(f"❌ **An error occurred:** {e}")
