@@ -6,8 +6,19 @@ from pyrogram.types import (
     ChatMemberUpdated,
 )
 from pyrogram import filters, Client, errors, enums, idle
-from pyrogram.errors import UserNotParticipant
+from pyrogram.errors import UserNotParticipant, ChannelPrivate, PeerIdInvalid
 from pyrogram.errors.exceptions.flood_420 import FloodWait
+
+# Monkey patch Client.get_messages to handle private channel replies gracefully
+original_get_messages = Client.get_messages
+
+async def patched_get_messages(self, *args, **kwargs):
+    try:
+        return await original_get_messages(self, *args, **kwargs)
+    except (ChannelPrivate, PeerIdInvalid):
+        return None
+
+Client.get_messages = patched_get_messages
 from database import (
     add_user,
     add_group,
