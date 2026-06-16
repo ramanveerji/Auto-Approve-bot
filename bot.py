@@ -34,17 +34,27 @@ from database import (
 )
 from configs import cfg
 import random, asyncio, os, sys, threading
-from flask import Flask
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
-flask_app = Flask(__name__)
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"I am Alive")
 
-@flask_app.route('/')
-def hello_world():
-    return 'I am Alive'
+    def log_message(self, format, *args):
+        # Override to suppress standard HTTP request logging in the bot logs
+        return
 
-def run_flask():
+def run_health_server():
     port = int(os.environ.get("PORT", 8080))
-    flask_app.run(host="0.0.0.0", port=port)
+    try:
+        server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+        server.serve_forever()
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to start health check server: {e}")
 
 def is_sudo(user_id: int) -> bool:
     return user_id == cfg.OWNER_ID or user_id in cfg.SUDO or user_id in get_sudolist()
@@ -740,8 +750,8 @@ async def sudolist_cmd(_, m: Message):
 
 async def main():
     global bot_id
-    # Start the Flask web server in a background thread to satisfy Dokploy's health checks
-    threading.Thread(target=run_flask, daemon=True).start()
+    # Start the built-in HTTP server in a background thread to satisfy Dokploy's health checks
+    threading.Thread(target=run_health_server, daemon=True).start()
     
     # 15 seconds startup delay to prevent multi-instance conflicts during rolling deployments
     logging.info("Delaying startup by 15 seconds to prevent multi-instance conflicts...")
