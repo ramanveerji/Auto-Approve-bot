@@ -33,7 +33,18 @@ from database import (
     get_all_groups_details,
 )
 from configs import cfg
-import random, asyncio, os, sys
+import random, asyncio, os, sys, threading
+from flask import Flask
+
+flask_app = Flask(__name__)
+
+@flask_app.route('/')
+def hello_world():
+    return 'I am Alive'
+
+def run_flask():
+    port = int(os.environ.get("PORT", 8080))
+    flask_app.run(host="0.0.0.0", port=port)
 
 def is_sudo(user_id: int) -> bool:
     return user_id == cfg.OWNER_ID or user_id in cfg.SUDO or user_id in get_sudolist()
@@ -729,6 +740,9 @@ async def sudolist_cmd(_, m: Message):
 
 async def main():
     global bot_id
+    # Start the Flask web server in a background thread to satisfy Dokploy's health checks
+    threading.Thread(target=run_flask, daemon=True).start()
+    
     # 15 seconds startup delay to prevent multi-instance conflicts during rolling deployments
     logging.info("Delaying startup by 15 seconds to prevent multi-instance conflicts...")
     await asyncio.sleep(15)
